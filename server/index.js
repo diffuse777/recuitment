@@ -1,30 +1,21 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import dns from 'dns';
-import { Server } from 'socket.io';
 import { createServer } from 'http';
-import authRoutes from './routes/auth.js';
-import applicationRoutes from './routes/applications.js';
-import messageRoutes from './routes/messages.js';
+import { Server } from 'socket.io';
 import Message from './models/Message.js';
 import User from './models/User.js';
 import { resolveUserId } from './utils/resolveUserId.js';
+import app, { connectDB } from './app.js';
 
 dotenv.config();
 
-// Local DNS often refuses MongoDB Atlas SRV lookups; use public resolvers for this process.
-dns.setServers(['8.8.8.8', '1.1.1.1']);
-
-const app = express();
-const httpServer = createServer(app);
-
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://owaspxcybernerds.xyz',
+  'https://www.owaspxcybernerds.xyz',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
+const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
@@ -33,20 +24,8 @@ const io = new Server(httpServer, {
   },
 });
 
-app.use(cors({
-  origin(origin, callback) {
-    // Allow non-browser tools (no Origin) and configured frontends
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin || true);
-      return;
-    }
-    callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-}));
-app.use(express.json());
+app.set('io', io);
 
-// Socket.io integration
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -104,25 +83,10 @@ io.on('connection', (socket) => {
   });
 });
 
-app.set('io', io); // Make io available in routes
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/applications', applicationRoutes);
-app.use('/api/messages', messageRoutes);
-
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  family: 4,
-  serverSelectionTimeoutMS: 20000,
-})
-  .then(() => {
-    console.log('Connected to MongoDB');
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error.message);
-    console.warn('⚠️ Server running without database connection!');
-  });
+connectDB().catch((error) => {
+  console.error('MongoDB connection error:', error.message);
+  console.warn('⚠️ Server running without database connection!');
+});
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
