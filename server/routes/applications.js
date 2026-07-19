@@ -309,125 +309,317 @@ const LOGO_CYBERNERDS = path.join(assetsDir, 'cybernerds.png');
 const LOGO_OWASP = path.join(assetsDir, 'owasp.png');
 const LOGO_UNIVERSITY = path.join(assetsDir, 'kalasalingam.png');
 
+const PDF_COLORS = {
+  navy: '#0b1f3a',
+  navyDeep: '#061526',
+  cyan: '#0891b2',
+  cyanBright: '#06b6d4',
+  teal: '#0e7490',
+  ink: '#0f172a',
+  muted: '#475569',
+  line: '#94a3b8',
+  zebra: '#ecfeff',
+  white: '#ffffff',
+  soft: '#f0f9ff',
+  accentBar: '#22d3ee',
+};
+
 const PDF_TABLE_COLUMNS = [
-  { key: 'name', label: 'Name', width: 0.3 },
-  { key: 'registerNumber', label: 'Register Number', width: 0.22 },
-  { key: 'preferredClub', label: 'Preferred Club', width: 0.23 },
+  { key: '_index', label: '#', width: 0.07 },
+  { key: 'name', label: 'Name', width: 0.28 },
+  { key: 'registerNumber', label: 'Register Number', width: 0.2 },
+  { key: 'preferredClub', label: 'Preferred Club', width: 0.2 },
   { key: 'preferredDomain', label: 'Domain', width: 0.25 },
 ];
 
-function drawPdfHeader(doc) {
+function drawPdfCornerMarks(doc) {
+  const m = 14;
+  const len = 18;
+  const w = doc.page.width;
+  const h = doc.page.height;
+  doc.save();
+  doc.strokeColor(PDF_COLORS.cyan).lineWidth(1.5);
+
+  // Top-left
+  doc.moveTo(m, m + len).lineTo(m, m).lineTo(m + len, m).stroke();
+  // Top-right
+  doc.moveTo(w - m - len, m).lineTo(w - m, m).lineTo(w - m, m + len).stroke();
+  // Bottom-left
+  doc.moveTo(m, h - m - len).lineTo(m, h - m).lineTo(m + len, h - m).stroke();
+  // Bottom-right
+  doc.moveTo(w - m - len, h - m).lineTo(w - m, h - m).lineTo(w - m, h - m - len).stroke();
+  doc.restore();
+}
+
+function drawPdfWatermark(doc) {
+  doc.save();
+  doc
+    .fillColor(PDF_COLORS.cyan)
+    .opacity(0.05)
+    .font('Helvetica-Bold')
+    .fontSize(42)
+    .rotate(-28, { origin: [doc.page.width / 2, doc.page.height / 2] })
+    .text('CYBERNERDS  ×  OWASP', 40, doc.page.height / 2 - 20, {
+      width: doc.page.width - 80,
+      align: 'center',
+    });
+  doc.restore();
+  doc.opacity(1);
+}
+
+function drawPdfHeader(doc, meta = {}) {
+  const pageW = doc.page.width;
   const left = doc.page.margins.left;
-  const right = doc.page.width - doc.page.margins.right;
-  const top = doc.page.margins.top;
+  const right = pageW - doc.page.margins.right;
   const contentWidth = right - left;
 
-  const clubLogoH = 36;
-  const clubLogoW = 110;
-  const uniLogoSize = 58;
-  let logosBottom = top;
+  drawPdfWatermark(doc);
+  drawPdfCornerMarks(doc);
+
+  // Top brand strip
+  doc.rect(0, 0, pageW, 8).fill(PDF_COLORS.navyDeep);
+  doc.rect(0, 8, pageW, 4).fill(PDF_COLORS.accentBar);
+
+  // Header panel background
+  const panelTop = 20;
+  const panelH = 118;
+  doc.rect(left - 6, panelTop, contentWidth + 12, panelH).fill(PDF_COLORS.soft);
+  doc
+    .strokeColor(PDF_COLORS.cyan)
+    .lineWidth(1)
+    .rect(left - 6, panelTop, contentWidth + 12, panelH)
+    .stroke();
+
+  // Left accent bar on panel
+  doc.rect(left - 6, panelTop, 4, panelH).fill(PDF_COLORS.cyanBright);
+
+  const logoTop = panelTop + 14;
+  const clubLogoH = 34;
+  const clubLogoW = 105;
+  const uniLogoSize = 56;
 
   if (fs.existsSync(LOGO_CYBERNERDS)) {
-    doc.image(LOGO_CYBERNERDS, left, top, { height: clubLogoH, width: clubLogoW });
+    doc.image(LOGO_CYBERNERDS, left + 8, logoTop, { height: clubLogoH, width: clubLogoW });
   }
   if (fs.existsSync(LOGO_OWASP)) {
-    doc.image(LOGO_OWASP, left + clubLogoW + 8, top, { height: clubLogoH, width: clubLogoW });
+    doc.image(LOGO_OWASP, left + clubLogoW + 16, logoTop, {
+      height: clubLogoH,
+      width: clubLogoW,
+    });
   }
-  logosBottom = Math.max(logosBottom, top + clubLogoH);
-
   if (fs.existsSync(LOGO_UNIVERSITY)) {
-    doc.image(LOGO_UNIVERSITY, right - uniLogoSize, top, {
+    doc.image(LOGO_UNIVERSITY, right - uniLogoSize - 8, logoTop - 2, {
       width: uniLogoSize,
       height: uniLogoSize,
     });
-    logosBottom = Math.max(logosBottom, top + uniLogoSize);
   }
 
-  const titleTop = logosBottom + 14;
+  // Club badge chips
+  const chipY = logoTop + clubLogoH + 10;
+  const drawChip = (label, x) => {
+    const chipW = 78;
+    const chipH = 16;
+    doc.roundedRect(x, chipY, chipW, chipH, 3).fill(PDF_COLORS.navy);
+    doc
+      .fillColor(PDF_COLORS.white)
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .text(label, x, chipY + 4, { width: chipW, align: 'center' });
+  };
+  drawChip('CYBERNERDS', left + 8);
+  drawChip('OWASP KARE', left + 94);
+
+  // Title block
+  const titleTop = panelTop + panelH + 14;
   doc
     .font('Helvetica-Bold')
-    .fontSize(12)
-    .fillColor('#0f172a')
+    .fontSize(11)
+    .fillColor(PDF_COLORS.navy)
     .text('KALASALINGAM ACADEMY OF RESEARCH AND EDUCATION', left, titleTop, {
       width: contentWidth,
       align: 'center',
     });
 
+  // Decorative diamonds under university name
+  const midX = pageW / 2;
+  const decoY = doc.y + 8;
+  doc.save();
+  doc.fillColor(PDF_COLORS.cyanBright);
+  [[midX - 40, decoY], [midX, decoY], [midX + 40, decoY]].forEach(([x, y]) => {
+    doc
+      .polygon([x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y])
+      .fill();
+  });
+  doc.restore();
+
+  // Main banner
+  const bannerY = decoY + 12;
+  const bannerH = 28;
+  doc.rect(left, bannerY, contentWidth, bannerH).fill(PDF_COLORS.navy);
+  doc.rect(left, bannerY, 6, bannerH).fill(PDF_COLORS.accentBar);
+  doc.rect(right - 6, bannerY, 6, bannerH).fill(PDF_COLORS.accentBar);
   doc
+    .fillColor(PDF_COLORS.white)
     .font('Helvetica-Bold')
     .fontSize(14)
-    .fillColor('#111827')
-    .text('SHORTLISTED STUDENTS', left, doc.y + 6, {
+    .text('SHORTLISTED STUDENTS', left, bannerY + 7, {
       width: contentWidth,
       align: 'center',
     });
 
-  const lineY = doc.y + 10;
+  // Meta row
+  const metaY = bannerY + bannerH + 10;
+  const generated = new Date().toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
   doc
-    .strokeColor('#1e3a5f')
-    .lineWidth(1.2)
-    .moveTo(left, lineY)
-    .lineTo(right, lineY)
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(PDF_COLORS.muted)
+    .text(`CYBERNERDS × OWASP  ·  Recruitment Report  ·  Generated ${generated}`, left, metaY, {
+      width: contentWidth,
+      align: 'center',
+    });
+
+  if (meta.total != null) {
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .fillColor(PDF_COLORS.teal)
+      .text(`Total shortlisted: ${meta.total}`, left, doc.y + 2, {
+        width: contentWidth,
+        align: 'center',
+      });
+  }
+
+  // Gradient-style double rule
+  const ruleY = doc.y + 10;
+  doc
+    .strokeColor(PDF_COLORS.navy)
+    .lineWidth(2)
+    .moveTo(left, ruleY)
+    .lineTo(right, ruleY)
+    .stroke();
+  doc
+    .strokeColor(PDF_COLORS.accentBar)
+    .lineWidth(1)
+    .moveTo(left, ruleY + 3)
+    .lineTo(right, ruleY + 3)
     .stroke();
 
-  doc.y = lineY + 14;
+  doc.y = ruleY + 12;
+}
+
+function drawPdfFooter(doc, pageNum, totalPages) {
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const y = doc.page.height - 28;
+
+  doc.rect(0, doc.page.height - 10, doc.page.width, 10).fill(PDF_COLORS.navyDeep);
+  doc.rect(0, doc.page.height - 12, doc.page.width, 2).fill(PDF_COLORS.accentBar);
+
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(PDF_COLORS.muted)
+    .text('CYBERNERDS × OWASP  ·  Kalasalingam Academy of Research and Education', left, y - 8, {
+      width: right - left - 60,
+      align: 'left',
+    });
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(PDF_COLORS.navy)
+    .text(`Page ${pageNum} / ${totalPages}`, right - 70, y - 8, {
+      width: 70,
+      align: 'right',
+    });
 }
 
 function drawPdfTableHeader(doc, colWidths, left) {
-  const rowH = 22;
+  const rowH = 24;
   const y = doc.y;
+  const tableWidth = colWidths.reduce((a, b) => a + b, 0);
 
-  doc.rect(left, y, colWidths.reduce((a, b) => a + b, 0), rowH).fill('#1e3a5f');
+  doc.rect(left, y, tableWidth, rowH).fill(PDF_COLORS.navy);
+  doc.rect(left, y + rowH - 2, tableWidth, 2).fill(PDF_COLORS.accentBar);
 
   let x = left;
-  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9);
+  doc.fillColor(PDF_COLORS.white).font('Helvetica-Bold').fontSize(8.5);
   PDF_TABLE_COLUMNS.forEach((col, i) => {
-    doc.text(col.label, x + 4, y + 6, {
+    doc.text(col.label, x + 4, y + 7, {
       width: colWidths[i] - 8,
-      align: 'left',
+      align: i === 0 ? 'center' : 'left',
       ellipsis: true,
     });
     x += colWidths[i];
   });
 
   doc.y = y + rowH;
-  doc.fillColor('#111827');
+  doc.fillColor(PDF_COLORS.ink);
 }
 
-function drawPdfTableRow(doc, row, colWidths, left, zebra) {
-  const paddingY = 5;
-  const fontSize = 9;
-  const cellTexts = PDF_TABLE_COLUMNS.map((col) => String(row[col.key] ?? '').trim() || '—');
+function drawPdfTableRow(doc, row, colWidths, left, zebra, index) {
+  const paddingY = 6;
+  const fontSize = 8.5;
+  const cellTexts = PDF_TABLE_COLUMNS.map((col) => {
+    if (col.key === '_index') return String(index + 1);
+    return String(row[col.key] ?? '').trim() || '—';
+  });
 
   doc.font('Helvetica').fontSize(fontSize);
   const heights = cellTexts.map((text, i) =>
     doc.heightOfString(text, { width: colWidths[i] - 8 })
   );
-  const rowH = Math.max(20, Math.max(...heights) + paddingY * 2);
+  const rowH = Math.max(22, Math.max(...heights) + paddingY * 2);
   const tableWidth = colWidths.reduce((a, b) => a + b, 0);
   const y = doc.y;
 
   if (zebra) {
-    doc.rect(left, y, tableWidth, rowH).fill('#f1f5f9');
+    doc.rect(left, y, tableWidth, rowH).fill(PDF_COLORS.zebra);
+  } else {
+    doc.rect(left, y, tableWidth, rowH).fill(PDF_COLORS.white);
   }
 
-  doc.strokeColor('#cbd5e1').lineWidth(0.5);
+  // Left accent tick
+  doc.rect(left, y, 2.5, rowH).fill(zebra ? PDF_COLORS.cyan : PDF_COLORS.navy);
+
+  doc.strokeColor('#cbd5e1').lineWidth(0.6);
   doc.rect(left, y, tableWidth, rowH).stroke();
 
   let x = left;
   cellTexts.forEach((text, i) => {
     if (i > 0) {
       doc
-        .strokeColor('#cbd5e1')
+        .strokeColor('#e2e8f0')
         .moveTo(x, y)
         .lineTo(x, y + rowH)
         .stroke();
     }
-    doc.fillColor('#111827').font('Helvetica').fontSize(fontSize);
-    doc.text(text, x + 4, y + paddingY, {
-      width: colWidths[i] - 8,
-      align: 'left',
-    });
+
+    if (i === 0) {
+      // Number badge
+      const cx = x + colWidths[i] / 2;
+      const cy = y + rowH / 2;
+      doc.circle(cx, cy, 8).fill(PDF_COLORS.navy);
+      doc
+        .fillColor(PDF_COLORS.white)
+        .font('Helvetica-Bold')
+        .fontSize(7)
+        .text(text, x, cy - 3.5, { width: colWidths[i], align: 'center' });
+    } else {
+      const isClub = PDF_TABLE_COLUMNS[i].key === 'preferredClub';
+      doc
+        .fillColor(isClub ? PDF_COLORS.teal : PDF_COLORS.ink)
+        .font(isClub ? 'Helvetica-Bold' : 'Helvetica')
+        .fontSize(fontSize);
+      doc.text(text, x + 5, y + paddingY, {
+        width: colWidths[i] - 10,
+        align: 'left',
+      });
+    }
     x += colWidths[i];
   });
 
@@ -436,7 +628,16 @@ function drawPdfTableRow(doc, row, colWidths, left, zebra) {
 
 function buildExportPdf(rows) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 36, size: 'A4' });
+    const doc = new PDFDocument({
+      margin: 40,
+      size: 'A4',
+      bufferPages: true,
+      info: {
+        Title: 'Shortlisted Students — CYBERNERDS × OWASP',
+        Author: 'CYBERNERDS × OWASP KARE',
+        Subject: 'Recruitment shortlist export',
+      },
+    });
     const chunks = [];
 
     doc.on('data', (chunk) => chunks.push(chunk));
@@ -446,33 +647,53 @@ function buildExportPdf(rows) {
     const left = doc.page.margins.left;
     const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const colWidths = PDF_TABLE_COLUMNS.map((col) => contentWidth * col.width);
-    const bottomLimit = () => doc.page.height - doc.page.margins.bottom;
+    const bottomLimit = () => doc.page.height - 48;
 
     const startPage = () => {
-      drawPdfHeader(doc);
+      drawPdfHeader(doc, { total: rows.length });
       drawPdfTableHeader(doc, colWidths, left);
     };
 
     startPage();
 
     if (rows.length === 0) {
-      doc.font('Helvetica').fontSize(11).fillColor('#334155');
-      doc.text('No shortlisted students matched the selected filters.', left, doc.y + 8, {
+      doc.font('Helvetica').fontSize(11).fillColor(PDF_COLORS.muted);
+      doc.text('No shortlisted students matched the selected filters.', left, doc.y + 16, {
         width: contentWidth,
         align: 'center',
       });
-      doc.end();
-      return;
+    } else {
+      rows.forEach((row, index) => {
+        const estimatedRowH = 30;
+        if (doc.y + estimatedRowH > bottomLimit()) {
+          doc.addPage();
+          startPage();
+        }
+        drawPdfTableRow(doc, row, colWidths, left, index % 2 === 1, index);
+      });
+
+      // Closing graphic strip
+      if (doc.y + 36 < bottomLimit()) {
+        const boxY = doc.y + 16;
+        doc.roundedRect(left, boxY, contentWidth, 28, 4).fill(PDF_COLORS.navy);
+        doc
+          .fillColor(PDF_COLORS.accentBar)
+          .font('Helvetica-Bold')
+          .fontSize(9)
+          .text(
+            `END OF LIST  ·  ${rows.length} candidate${rows.length === 1 ? '' : 's'} shortlisted`,
+            left,
+            boxY + 9,
+            { width: contentWidth, align: 'center' }
+          );
+      }
     }
 
-    rows.forEach((row, index) => {
-      const estimatedRowH = 28;
-      if (doc.y + estimatedRowH > bottomLimit()) {
-        doc.addPage();
-        startPage();
-      }
-      drawPdfTableRow(doc, row, colWidths, left, index % 2 === 1);
-    });
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i += 1) {
+      doc.switchToPage(range.start + i);
+      drawPdfFooter(doc, i + 1, range.count);
+    }
 
     doc.end();
   });
