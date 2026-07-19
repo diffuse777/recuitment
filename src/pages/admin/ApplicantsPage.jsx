@@ -34,6 +34,10 @@ const ApplicantsPage = () => {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resumeKey, setResumeKey] = useState(0);
+  const [remarksApp, setRemarksApp] = useState(null);
+  const [remarksDraft, setRemarksDraft] = useState('');
+  const [remarksStatus, setRemarksStatus] = useState('');
+  const [savingRemarks, setSavingRemarks] = useState(false);
 
   const fetchApplicants = async () => {
     try {
@@ -103,9 +107,56 @@ const ApplicantsPage = () => {
           prev.map((a) => (a._id === id ? data.application : a))
         );
         setSelectedApp((prev) => (prev?._id === id ? data.application : prev));
+        setRemarksApp((prev) => (prev?._id === id ? data.application : prev));
       }
     } catch (error) {
       console.error('Status update failed:', error);
+    }
+  };
+
+  const openRemarks = (app) => {
+    setRemarksApp(app);
+    setRemarksDraft(app.remarks || '');
+    setRemarksStatus('');
+  };
+
+  const closeRemarks = () => {
+    setRemarksApp(null);
+    setRemarksDraft('');
+    setRemarksStatus('');
+  };
+
+  const saveRemarks = async () => {
+    if (!remarksApp?._id) return;
+    setSavingRemarks(true);
+    setRemarksStatus('');
+    try {
+      const res = await fetch(apiUrl(`/api/applications/${remarksApp._id}/remarks`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks: remarksDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRemarksStatus(data.message || 'Failed to save remarks.');
+        return;
+      }
+      if (data.application) {
+        setApplicants((prev) =>
+          prev.map((a) => (a._id === data.application._id ? data.application : a))
+        );
+        setSelectedApp((prev) =>
+          prev?._id === data.application._id ? data.application : prev
+        );
+        setRemarksApp(data.application);
+        setRemarksDraft(data.application.remarks || '');
+        setRemarksStatus('Remarks saved.');
+      }
+    } catch (error) {
+      console.error('Save remarks failed:', error);
+      setRemarksStatus('Failed to save remarks.');
+    } finally {
+      setSavingRemarks(false);
     }
   };
 
@@ -356,6 +407,13 @@ const ApplicantsPage = () => {
                       {app.status === 'Interview' && (
                         <>
                           <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openRemarks(app)}
+                            title="Add interview remarks before deciding Accept/Reject"
+                          >
+                            {app.remarks ? 'Edit Remarks' : 'Add Remarks'}
+                          </button>
+                          <button
                             className="btn btn-primary btn-sm"
                             onClick={() => updateStatus(app._id, 'Accepted')}
                           >
@@ -480,6 +538,27 @@ const ApplicantsPage = () => {
                 selectedApp.status === 'Interview' ? 'Interview Done' : selectedApp.status
               }
             />
+            {selectedApp.remarks ? (
+              <div style={{ ...detailRowStyle, alignItems: 'start' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Remarks</span>
+                <span style={{ fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+                  {selectedApp.remarks}
+                  {selectedApp.remarksUpdatedAt && (
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: '6px',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-muted)',
+                        fontWeight: 400,
+                      }}
+                    >
+                      Updated {new Date(selectedApp.remarksUpdatedAt).toLocaleString()}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ) : null}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '16px' }}>
               {(selectedApp.status === 'Under Review' || selectedApp.status === 'Review') && (
@@ -493,6 +572,13 @@ const ApplicantsPage = () => {
               )}
               {selectedApp.status === 'Interview' && (
                 <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => openRemarks(selectedApp)}
+                  >
+                    {selectedApp.remarks ? 'Edit Remarks' : 'Add Remarks'}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
@@ -635,6 +721,77 @@ const ApplicantsPage = () => {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {remarksApp && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remarks-title"
+          onClick={closeRemarks}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(560px, 100%)',
+              margin: 0,
+            }}
+          >
+            <h3 id="remarks-title" style={{ marginBottom: '4px' }}>
+              {remarksApp.remarks ? 'Edit Remarks' : 'Add Remarks'}
+            </h3>
+            <p style={{ color: 'var(--text-muted)', margin: '0 0 16px', fontSize: '0.9rem' }}>
+              Interview notes for <strong>{remarksApp.name}</strong>. Save now; Accept or Reject
+              later when ready.
+            </p>
+            <textarea
+              className="form-control"
+              rows={6}
+              placeholder="e.g. Strong technical answers, needs follow-up on availability..."
+              value={remarksDraft}
+              onChange={(e) => setRemarksDraft(e.target.value)}
+              maxLength={5000}
+              style={{ marginBottom: '12px', resize: 'vertical' }}
+            />
+            {remarksStatus && (
+              <p
+                style={{
+                  fontSize: '0.9rem',
+                  marginBottom: '12px',
+                  color: remarksStatus.toLowerCase().includes('fail')
+                    ? 'var(--danger, #ef4444)'
+                    : 'var(--success)',
+                }}
+              >
+                {remarksStatus}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={saveRemarks}
+                disabled={savingRemarks}
+              >
+                {savingRemarks ? 'Saving...' : 'Save Remarks'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={closeRemarks}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

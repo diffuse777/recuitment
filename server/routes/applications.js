@@ -898,6 +898,34 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// Save / update interview remarks (Admin) — after Interview Done, before Accept/Reject
+router.patch('/:id/remarks', async (req, res) => {
+  try {
+    const remarks = String(req.body?.remarks ?? '').trim();
+    if (remarks.length > 5000) {
+      return res.status(400).json({ message: 'Remarks must be 5000 characters or less.' });
+    }
+
+    const application = await Application.findByIdAndUpdate(
+      req.params.id,
+      {
+        remarks,
+        remarksUpdatedAt: remarks ? new Date() : null,
+      },
+      { new: true }
+    ).select('-resumeData');
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found.' });
+    }
+
+    res.json({ application });
+  } catch (error) {
+    console.error('Update remarks error:', error);
+    res.status(500).json({ message: 'Failed to save remarks.' });
+  }
+});
+
 // Delete applicant application + related messages — keep the user so they can re-apply
 router.delete('/:id', async (req, res) => {
   try {

@@ -87,7 +87,17 @@ const applicationSchema = new mongoose.Schema({
     type: String,
     enum: ['Under Review', 'Interview', 'Accepted', 'Rejected'],
     default: 'Under Review',
-  }
+  },
+  // Admin interview notes — saved after Interview Done; decide Accept/Reject later
+  remarks: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  remarksUpdatedAt: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Application', applicationSchema);

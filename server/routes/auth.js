@@ -13,8 +13,8 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id
 router.post('/admin', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';
-    const expectedUsername = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
+    const expectedPassword = process.env.ADMIN_PASSWORD || 'recuitment@0007';
+    const expectedUsername = (process.env.ADMIN_USERNAME || 'cybernerdsXowsap').trim().toLowerCase();
     const providedUsername = String(username || '').trim().toLowerCase();
 
     if (!providedUsername || !password) {
