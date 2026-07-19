@@ -1,0 +1,26 @@
+{
+  "name": "recruitment-app-server",
+  "version": "1.0.0",
+  "description": "Backend for TechClub recruitment application",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "google-auth-library": "^9.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.1",
+    "multer": "^2.2.0",
+    "pdfkit": "^0.19.1",
+    "socket.io": "^4.7.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.3"
+  }
+}
