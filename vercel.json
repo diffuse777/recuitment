@@ -1,7 +1,12 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "vite build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "build": {
+    "env": {
+      "VITE_API_URL": ""
+    }
+  },
   "functions": {
     "api/index.js": {
       "includeFiles": "server/**",
