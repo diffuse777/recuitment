@@ -1,6 +1,7 @@
 import express from 'express';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
+import Application from '../models/Application.js';
 import { resolveUserId } from '../utils/resolveUserId.js';
 
 const router = express.Router();
@@ -90,6 +91,65 @@ router.post('/', async (req, res) => {
       message: error.message?.includes('log in again')
         ? error.message
         : 'Failed to send message.',
+    });
+  }
+});
+
+// Broadcast interview details (or any admin notice) to every applicant
+router.post('/broadcast', async (req, res) => {
+  try {
+    const { senderId, text, senderRole } = req.body;
+
+    if (!text?.trim()) {
+      return res.status(400).json({ message: 'Interview details text is required.' });
+    }
+    if (senderRole !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can broadcast messages.' });
+    }
+
+    const resolvedSenderId = await resolveUserId(senderId);
+
+    // All users who have submitted an application
+    const applications = await Application.find({}).select('userId name').lean();
+    const receiverIds = [
+      ...new Set(
+        applications
+          .map((app) => (app.userId ? String(app.userId) : null))
+          .filter(Boolean)
+      ),
+    ];
+
+    if (!receiverIds.length) {
+      return res.status(400).json({ message: 'No applicants found to notify.' });
+    }
+
+    const body = String(text).trim();
+    const prefixed = body.toLowerCase().startsWith('interview details')
+      ? body
+      : `Interview Details\n\n${body}`;
+
+    const created = [];
+    for (const receiverId of receiverIds) {
+      const message = await Message.create({
+        senderId: resolvedSenderId,
+        receiverId,
+        text: prefixed,
+        senderRole: 'admin',
+      });
+      await emitMessage(req, message, senderId, receiverId);
+      created.push(message);
+    }
+
+    res.status(201).json({
+      message: `Interview details sent to ${created.length} applicant${created.length === 1 ? '' : 's'}.`,
+      sentCount: created.length,
+    });
+  } catch (error) {
+    console.error('Error broadcasting interview details:', error);
+    res.status(500).json({
+      message: error.message?.includes('log in again')
+        ? error.message
+        : 'Failed to send interview details.',
     });
   }
 });

@@ -66,7 +66,6 @@ const AdminDashboard = () => {
             Offers Accepted
           </span>
           <h2 style={{ fontSize: '2.25rem', marginTop: '8px', color: 'var(--success)' }}>{loading ? '-' : accepted}</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '4px' }}>Target: 15 members</p>
         </div>
       </div>
 

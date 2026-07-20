@@ -38,6 +38,10 @@ const ApplicantsPage = () => {
   const [remarksDraft, setRemarksDraft] = useState('');
   const [remarksStatus, setRemarksStatus] = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
+  const [showInterviewDetails, setShowInterviewDetails] = useState(false);
+  const [interviewDetailsText, setInterviewDetailsText] = useState('');
+  const [interviewDetailsStatus, setInterviewDetailsStatus] = useState('');
+  const [sendingInterviewDetails, setSendingInterviewDetails] = useState(false);
 
   const fetchApplicants = async () => {
     try {
@@ -157,6 +161,66 @@ const ApplicantsPage = () => {
       setRemarksStatus('Failed to save remarks.');
     } finally {
       setSavingRemarks(false);
+    }
+  };
+
+  const openInterviewDetails = () => {
+    setInterviewDetailsText('');
+    setInterviewDetailsStatus('');
+    setShowInterviewDetails(true);
+  };
+
+  const closeInterviewDetails = () => {
+    setShowInterviewDetails(false);
+    setInterviewDetailsText('');
+    setInterviewDetailsStatus('');
+  };
+
+  const sendInterviewDetails = async () => {
+    if (!adminUser?._id) {
+      setInterviewDetailsStatus('Admin session missing. Please log in again.');
+      return;
+    }
+    if (!interviewDetailsText.trim()) {
+      setInterviewDetailsStatus('Please enter the interview details.');
+      return;
+    }
+    if (!applicants.length) {
+      setInterviewDetailsStatus('No applicants to notify yet.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Send these interview details to all ${applicants.length} applicant${applicants.length === 1 ? '' : 's'}?`
+    );
+    if (!confirmed) return;
+
+    setSendingInterviewDetails(true);
+    setInterviewDetailsStatus('');
+    try {
+      const res = await fetch(apiUrl('/api/messages/broadcast'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: adminUser._id,
+          senderRole: 'admin',
+          text: interviewDetailsText.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInterviewDetailsStatus(data.message || 'Failed to send interview details.');
+        return;
+      }
+      setInterviewDetailsStatus(
+        data.message || `Sent to ${data.sentCount || applicants.length} applicants.`
+      );
+      setInterviewDetailsText('');
+    } catch (error) {
+      console.error('Broadcast interview details failed:', error);
+      setInterviewDetailsStatus('Failed to send. Check that the server is running.');
+    } finally {
+      setSendingInterviewDetails(false);
     }
   };
 
@@ -286,11 +350,35 @@ const ApplicantsPage = () => {
 
   return (
     <div className="container" style={{ padding: '32px 24px' }}>
-      <header style={{ marginBottom: '32px' }}>
-        <h2>Candidate Registry</h2>
-        <p style={{ color: 'var(--text-muted)' }}>
-          Manage, filter, and review applications for the current term.
-        </p>
+      <header
+        style={{
+          marginBottom: '32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: '16px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <h2>Candidate Registry</h2>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+            Manage, filter, and review applications for the current term.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={openInterviewDetails}
+          disabled={!applicants.length}
+          title={
+            applicants.length
+              ? 'Send interview details to all applicants'
+              : 'No applicants yet'
+          }
+        >
+          Interview Details
+        </button>
       </header>
 
       <div
@@ -705,14 +793,20 @@ const ApplicantsPage = () => {
                 placeholder={`Write a message to ${selectedApp.name}...`}
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                style={{ marginBottom: '12px', resize: 'vertical' }}
+                style={{
+                  marginBottom: '12px',
+                  resize: 'vertical',
+                  color: '#e2e8f0',
+                  WebkitTextFillColor: '#e2e8f0',
+                  caretColor: '#e2e8f0',
+                  backgroundColor: '#0f172a',
+                }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <button
                   type="submit"
                   className="btn btn-primary"
                   disabled={sending || !messageText.trim()}
-                  style={{ backgroundColor: 'var(--sidebar-bg)' }}
                 >
                   {sending ? 'Sending...' : 'Send Message'}
                 </button>
@@ -764,7 +858,14 @@ const ApplicantsPage = () => {
               value={remarksDraft}
               onChange={(e) => setRemarksDraft(e.target.value)}
               maxLength={5000}
-              style={{ marginBottom: '12px', resize: 'vertical' }}
+              style={{
+                marginBottom: '12px',
+                resize: 'vertical',
+                color: '#e2e8f0',
+                WebkitTextFillColor: '#e2e8f0',
+                caretColor: '#e2e8f0',
+                backgroundColor: '#0f172a',
+              }}
             />
             {remarksStatus && (
               <p
@@ -789,6 +890,92 @@ const ApplicantsPage = () => {
                 {savingRemarks ? 'Saving...' : 'Save Remarks'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={closeRemarks}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInterviewDetails && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="interview-details-title"
+          onClick={closeInterviewDetails}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(560px, 100%)',
+              margin: 0,
+            }}
+          >
+            <h3 id="interview-details-title" style={{ marginBottom: '4px' }}>
+              Interview Details
+            </h3>
+            <p style={{ color: 'var(--text-muted)', margin: '0 0 16px', fontSize: '0.9rem' }}>
+              Enter venue, date, time, or instructions. This will be sent as a message to all{' '}
+              <strong>{applicants.length}</strong> applicant
+              {applicants.length === 1 ? '' : 's'}.
+            </p>
+            <textarea
+              className="form-control"
+              rows={7}
+              placeholder={
+                'Example:\nDate: 25 July 2026\nTime: 10:00 AM\nVenue: Lab Block, Room 204\nBring: College ID and resume'
+              }
+              value={interviewDetailsText}
+              onChange={(e) => setInterviewDetailsText(e.target.value)}
+              maxLength={5000}
+              style={{
+                marginBottom: '12px',
+                resize: 'vertical',
+                color: '#e2e8f0',
+                WebkitTextFillColor: '#e2e8f0',
+                caretColor: '#e2e8f0',
+                backgroundColor: '#0f172a',
+              }}
+            />
+            {interviewDetailsStatus && (
+              <p
+                style={{
+                  fontSize: '0.9rem',
+                  marginBottom: '12px',
+                  color: interviewDetailsStatus.toLowerCase().includes('fail')
+                    ? 'var(--danger, #ef4444)'
+                    : 'var(--success)',
+                }}
+              >
+                {interviewDetailsStatus}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={sendInterviewDetails}
+                disabled={sendingInterviewDetails || !interviewDetailsText.trim()}
+              >
+                {sendingInterviewDetails ? 'Sending…' : 'Send to All Applicants'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeInterviewDetails}
+                disabled={sendingInterviewDetails}
+              >
                 Close
               </button>
             </div>

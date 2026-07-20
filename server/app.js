@@ -6,6 +6,7 @@ import dns from 'dns';
 import authRoutes from './routes/auth.js';
 import applicationRoutes from './routes/applications.js';
 import messageRoutes from './routes/messages.js';
+import recruitmentRoutes from './routes/recruitment.js';
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/applications', applicationRoutes);
   app.use('/api/messages', messageRoutes);
+  app.use('/api/recruitment', recruitmentRoutes);
 
   return app;
 }

@@ -51,7 +51,7 @@ function getStepStates(appStatus) {
 
 function statusLabel(appStatus) {
   if (appStatus === 'Interview') return 'Interview Done';
-  if (appStatus === 'Not Started') return 'Not Started';
+  if (appStatus === 'Not Started') return 'Application not submitted';
   return appStatus;
 }
 
@@ -59,7 +59,7 @@ function finalizedDetail(appStatus) {
   if (appStatus === 'Accepted') {
     return {
       title: 'Finalized — Accepted',
-      desc: 'Congratulations! You have been accepted.',
+      desc: 'Congratulations! You have been shortlisted.',
     };
   }
   if (appStatus === 'Rejected') {
@@ -120,16 +120,13 @@ const ApplicationStatusPage = () => {
       const detail = finalizedDetail(appStatus);
       return { ...milestone, ...detail, status: state };
     }
-    // Mark first pending as active for Under Review
-    if (
-      (appStatus === 'Under Review' || appStatus === 'Review') &&
-      idx === 0 &&
-      state === 'completed'
-    ) {
-      return { ...milestone, status: 'completed' };
-    }
     if (appStatus === 'Not Started' && idx === 0) {
-      return { ...milestone, status: 'pending' };
+      return {
+        ...milestone,
+        title: 'Application not submitted',
+        desc: 'You have not submitted your club application yet.',
+        status: 'active',
+      };
     }
     return { ...milestone, status: state };
   });
@@ -140,9 +137,15 @@ const ApplicationStatusPage = () => {
   }
 
   const currentStep =
-    steps.find((s) => s.status === 'active' || s.status === 'rejected') ||
-    steps.find((s) => s.status === 'completed') ||
-    steps[0];
+    appStatus === 'Not Started'
+      ? {
+          title: 'Application not submitted',
+          desc: 'You have not submitted your club application yet.',
+          status: 'active',
+        }
+      : steps.find((s) => s.status === 'active' || s.status === 'rejected') ||
+        steps.find((s) => s.status === 'completed') ||
+        steps[0];
 
   const badgeClass =
     appStatus === 'Accepted'

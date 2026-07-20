@@ -249,7 +249,7 @@ const ExportPage = () => {
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '8px', backgroundColor: 'var(--sidebar-bg)' }}
+            style={{ width: '100%', marginTop: '8px' }}
             disabled={downloading}
           >
             {downloading

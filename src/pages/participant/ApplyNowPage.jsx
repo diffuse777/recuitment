@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { fileToBase64 } from '../../utils/resume';
 import { isUniversityEmail } from '../../utils/auth';
 import { apiUrl } from '../../config/api';
+import { useRecruitmentStatus } from '../../hooks/useRecruitmentStatus';
+import RecruitmentCountdown from '../../components/RecruitmentCountdown';
 
 // ── Defined OUTSIDE the component so React doesn't remount on every keystroke ──
 const fieldStyle = { marginBottom: '20px' };
@@ -62,6 +64,14 @@ const ApplyNowPage = () => {
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingExisting, setCheckingExisting] = useState(true);
+  const {
+    applicationsOpen,
+    effectiveStatus,
+    statusLabel,
+    countdown,
+    loading: windowLoading,
+    error: windowError,
+  } = useRecruitmentStatus();
 
   useEffect(() => {
     const fetchExistingApplication = async () => {
@@ -210,6 +220,10 @@ const ApplyNowPage = () => {
       ) {
         setAlreadyApplied(true);
         setSubmitError('You have already submitted your application.');
+      } else if (data.code === 'APPLICATIONS_CLOSED' || response.status === 403) {
+        setSubmitError(
+          data.message || 'Applications are closed. New submissions are no longer accepted.'
+        );
       } else if (response.status === 401 || data.code === 'SESSION_INVALID') {
         setSubmitError(data.message || 'Your session is no longer valid. Please log in again.');
         logout();
@@ -225,7 +239,7 @@ const ApplyNowPage = () => {
     }
   };
 
-  if (checkingExisting) {
+  if (checkingExisting || windowLoading) {
     return (
       <div className="container" style={{ maxWidth: '640px', padding: '80px 24px', textAlign: 'center' }}>
         <p style={{ color: 'var(--text-muted)' }}>Checking your application status…</p>
@@ -250,6 +264,46 @@ const ApplyNowPage = () => {
               Back to Dashboard
             </Link>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!applicationsOpen) {
+    const heading =
+      effectiveStatus === 'closed' ? 'Applications Closed' : 'Applications Opening Soon';
+    const showOpening =
+      effectiveStatus === 'not_started' && !countdown.expired && countdown.totalMs > 0;
+    const note =
+      effectiveStatus === 'closed'
+        ? 'The application window has ended. New submissions are no longer accepted.'
+        : 'Applications are not open yet. Please wait until the recruitment window begins.';
+
+    return (
+      <div className="container" style={{ maxWidth: '640px', padding: '80px 24px', textAlign: 'center' }}>
+        <div className="card">
+          <h2 style={{ marginBottom: '12px' }}>{heading}</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.95rem' }}>
+            {windowError || note}
+          </p>
+          {showOpening ? (
+            <div style={{ marginBottom: '20px' }}>
+              <RecruitmentCountdown
+                heading="Applications Open In"
+                days={countdown.days}
+                hours={countdown.hours}
+                minutes={countdown.minutes}
+                seconds={countdown.seconds}
+                compact
+              />
+            </div>
+          ) : null}
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
+            Current status: {statusLabel}
+          </p>
+          <Link to="/participant/dashboard" className="btn btn-secondary">
+            Back to Dashboard
+          </Link>
         </div>
       </div>
     );

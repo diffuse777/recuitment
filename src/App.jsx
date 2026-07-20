@@ -22,6 +22,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ApplicantsPage from './pages/admin/ApplicantsPage';
 import AdminMessagesPage from './pages/admin/AdminMessagesPage';
 import ExportPage from './pages/admin/ExportPage';
+import RecruitmentSettingsPage from './pages/admin/RecruitmentSettingsPage';
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
                 <Route path="/admin/applicants" element={<ApplicantsPage />} />
                 <Route path="/admin/messages" element={<AdminMessagesPage />} />
                 <Route path="/admin/export" element={<ExportPage />} />
+                <Route path="/admin/settings" element={<RecruitmentSettingsPage />} />
               </Route>
 
               {/* Unknown routes */}

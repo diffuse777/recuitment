@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRecruitmentStatus } from '../../hooks/useRecruitmentStatus';
+import RecruitmentCountdown from '../../components/RecruitmentCountdown';
 import './LandingPage.css';
 
 const FEATURES = [
@@ -186,10 +188,28 @@ function useRevealOnScroll() {
 const LandingPage = () => {
   const { user } = useAuth();
   const rootRef = useRevealOnScroll();
+  const {
+    effectiveStatus,
+    countdown,
+    loading: statusLoading,
+    error: statusError,
+  } = useRecruitmentStatus();
 
   // Public recruitment CTAs never route to the admin panel
   const applyPath =
     user?._id && user.role === 'participant' ? '/participant/apply' : '/login';
+
+  const showOpeningCountdown =
+    effectiveStatus === 'not_started' && !countdown.expired && Boolean(countdown.totalMs);
+  const showClosingCountdown =
+    effectiveStatus === 'open' && !countdown.expired && Boolean(countdown.totalMs);
+
+  const showDeadlineSection =
+    statusLoading ||
+    Boolean(statusError) ||
+    showOpeningCountdown ||
+    showClosingCountdown ||
+    (effectiveStatus === 'not_started' && !showOpeningCountdown);
 
   const scrollToDomains = (event) => {
     event.preventDefault();
@@ -221,6 +241,51 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {showDeadlineSection ? (
+        <section className="home-deadline" aria-labelledby="deadline-heading">
+          <div className="home-wrap">
+            <div className="home-deadline-panel home-reveal">
+              <h2 id="deadline-heading" className="home-deadline-status">
+                {statusLoading
+                  ? 'Loading recruitment status…'
+                  : effectiveStatus === 'not_started'
+                    ? 'Applications Opening Soon'
+                    : 'Applications Open'}
+              </h2>
+              {statusError ? (
+                <p className="home-deadline-error">{statusError}</p>
+              ) : null}
+              {!statusLoading && !statusError && showOpeningCountdown ? (
+                <RecruitmentCountdown
+                  heading="Applications Open In"
+                  days={countdown.days}
+                  hours={countdown.hours}
+                  minutes={countdown.minutes}
+                  seconds={countdown.seconds}
+                />
+              ) : null}
+              {!statusLoading && !statusError && showClosingCountdown ? (
+                <RecruitmentCountdown
+                  heading="Applications Close In"
+                  days={countdown.days}
+                  hours={countdown.hours}
+                  minutes={countdown.minutes}
+                  seconds={countdown.seconds}
+                />
+              ) : null}
+              {!statusLoading &&
+              !statusError &&
+              effectiveStatus === 'not_started' &&
+              !showOpeningCountdown ? (
+                <p className="home-deadline-note">
+                  Check back soon — opening dates will appear here once scheduled.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="home-section home-section-alt" aria-labelledby="about-heading">
         <div className="home-wrap">

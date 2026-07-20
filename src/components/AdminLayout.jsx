@@ -14,13 +14,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
 
   if (!user?._id) {
-    return (
-      <Navigate
-        to="/admin/login"
-        replace
-        state={{ from: location.pathname, message: 'Please log in as an administrator.' }}
-      />
-    );
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
   }
 
   if (user.role !== 'admin') {
@@ -79,6 +73,12 @@ const AdminLayout = () => {
           className={({ isActive }) => (isActive ? 'sidebar-link active' : 'sidebar-link')}
         >
           📥 Export Data
+        </NavLink>
+        <NavLink
+          to="/admin/settings"
+          className={({ isActive }) => (isActive ? 'sidebar-link active' : 'sidebar-link')}
+        >
+          ⚙️ Recruitment Settings
         </NavLink>
 
         <button

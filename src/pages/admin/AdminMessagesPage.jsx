@@ -235,7 +235,7 @@ const AdminMessagesPage = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  style={{ backgroundColor: 'var(--sidebar-bg)', whiteSpace: 'nowrap' }}
+                  style={{ whiteSpace: 'nowrap' }}
                   disabled={!newMessage.trim()}
                 >
                   Send

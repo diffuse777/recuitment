@@ -3,37 +3,31 @@ import { isUniversityEmail } from '../utils/auth';
 
 const AuthContext = createContext(null);
 
-function isValidUser(user) {
-  if (
-    !user ||
-    typeof user !== 'object' ||
-    typeof user._id !== 'string' ||
-    user._id.length === 0 ||
-    (user.role !== 'admin' && user.role !== 'participant')
-  ) {
-    return false;
-  }
-  // Participants must have a university email on file
-  if (user.role === 'participant' && !isUniversityEmail(user.email)) {
-    return false;
-  }
-  return true;
+function normalizeUser(user) {
+  if (!user || typeof user !== 'object') return null;
+  const id = user._id != null ? String(user._id) : '';
+  if (!id) return null;
+  if (user.role !== 'admin' && user.role !== 'participant') return null;
+  if (user.role === 'participant' && !isUniversityEmail(user.email)) return null;
+  return { ...user, _id: id };
 }
 
 function readStoredUser() {
   try {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return null;
-    const parsed = JSON.parse(savedUser);
-    if (!isValidUser(parsed)) {
+    const parsed = normalizeUser(JSON.parse(savedUser));
+    if (!parsed) {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      localStorage.removeItem('authType');
       return null;
     }
     return parsed;
   } catch {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('authType');
     return null;
   }
 }
@@ -41,13 +35,21 @@ function readStoredUser() {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => readStoredUser());
 
-  const login = (userData) => {
-    if (!isValidUser(userData)) {
+  const login = (userData, options = {}) => {
+    const normalized = normalizeUser(userData);
+    if (!normalized) {
       console.error('Ignored invalid login payload. Expected a user object with _id and role.');
-      return;
+      return false;
     }
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    if (options.token) {
+      localStorage.setItem('token', options.token);
+    }
+    if (options.authType) {
+      localStorage.setItem('authType', options.authType);
+    }
+    localStorage.setItem('user', JSON.stringify(normalized));
+    setUser(normalized);
+    return true;
   };
 
   const logout = () => {
@@ -62,7 +64,14 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, isValidUser, isAdmin, isParticipant }}
+      value={{
+        user,
+        login,
+        logout,
+        isValidUser: (u) => Boolean(normalizeUser(u)),
+        isAdmin,
+        isParticipant,
+      }}
     >
       {children}
     </AuthContext.Provider>

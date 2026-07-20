@@ -9,6 +9,7 @@ import Application from '../models/Application.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import { resolveUserId } from '../utils/resolveUserId.js';
+import { assertApplicationsOpen } from '../utils/recruitmentWindow.js';
 
 const router = express.Router();
 
@@ -113,6 +114,17 @@ router.post('/', upload.single('resume'), async (req, res) => {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(403).json({
         message: 'Applications must be linked to a university email ending with @klu.ac.in.',
+      });
+    }
+
+    try {
+      await assertApplicationsOpen();
+    } catch (windowError) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(windowError.statusCode || 403).json({
+        message: windowError.message,
+        code: windowError.code || 'APPLICATIONS_CLOSED',
+        effectiveStatus: windowError.effectiveStatus,
       });
     }
 
