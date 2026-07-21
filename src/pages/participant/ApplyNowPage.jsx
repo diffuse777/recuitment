@@ -6,6 +6,7 @@ import { isUniversityEmail } from '../../utils/auth';
 import { apiUrl } from '../../config/api';
 import { useRecruitmentStatus } from '../../hooks/useRecruitmentStatus';
 import RecruitmentCountdown from '../../components/RecruitmentCountdown';
+import WhatsAppGroupInvite from '../../components/WhatsAppGroupInvite';
 
 // ── Defined OUTSIDE the component so React doesn't remount on every keystroke ──
 const fieldStyle = { marginBottom: '20px' };
@@ -205,12 +206,9 @@ const ApplyNowPage = () => {
       if (response.ok) {
         setAlreadyApplied(true);
         setSuccessMessage(
-          data.message || 'Application submitted successfully. Redirecting to status page…'
+          data.message || 'Application submitted successfully.'
         );
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => {
-          navigate('/participant/status', { replace: true });
-        }, 1500);
         return;
       }
 
@@ -253,11 +251,35 @@ const ApplyNowPage = () => {
       <div className="container" style={{ maxWidth: '640px', padding: '80px 24px', textAlign: 'center' }}>
         <div className="card">
           <h2 style={{ marginBottom: '12px' }}>Application Already Submitted</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.95rem' }}>
             You have already submitted your application.
           </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <WhatsAppGroupInvite compact />
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '20px' }}>
             <Link to="/participant/status" className="btn btn-primary">
+              View Application Status
+            </Link>
+            <Link to="/participant/dashboard" className="btn btn-secondary">
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fresh submit success — show WhatsApp invite before continuing
+  if (successMessage) {
+    return (
+      <div className="container" style={{ maxWidth: '640px', padding: '80px 24px', textAlign: 'center' }}>
+        <div className="card">
+          <h2 style={{ marginBottom: '12px', color: 'var(--success)' }}>Application Submitted</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.95rem' }}>
+            {successMessage}
+          </p>
+          <WhatsAppGroupInvite />
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '20px' }}>
+            <Link to="/participant/status" className="btn btn-primary" replace>
               View Application Status
             </Link>
             <Link to="/participant/dashboard" className="btn btn-secondary">
@@ -319,23 +341,6 @@ const ApplyNowPage = () => {
           Your application will be linked to <strong>{user.email}</strong>.
         </p>
       </header>
-
-      {successMessage && (
-        <div
-          role="status"
-          style={{
-            backgroundColor: 'rgba(5, 150, 105, 0.1)',
-            color: 'var(--success, #059669)',
-            padding: '14px 16px',
-            borderRadius: '8px',
-            border: '1px solid rgba(5, 150, 105, 0.45)',
-            marginBottom: '24px',
-            fontSize: '0.9rem',
-          }}
-        >
-          {successMessage}
-        </div>
-      )}
 
       {submitError && (
         <div style={{

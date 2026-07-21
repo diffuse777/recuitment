@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config/api';
+import WhatsAppGroupInvite from '../../components/WhatsAppGroupInvite';
 
 const MILESTONES = [
   {
@@ -315,6 +316,12 @@ const ApplicationStatusPage = () => {
           ))}
         </div>
       </div>
+
+      {!loading && appStatus !== 'Not Started' ? (
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <WhatsAppGroupInvite />
+        </div>
+      ) : null}
 
       <div
         className="card"
