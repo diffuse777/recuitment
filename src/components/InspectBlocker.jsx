@@ -1,56 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * When DevTools / inspect is detected, hide the entire site UI
- * and show only the block screen. DevTools itself cannot be closed
- * by a website, but page content can be hidden.
+ * Shows the inspect-disabled popup ONLY when the user presses
+ * F12 / DevTools shortcuts / right-click — never automatically.
  */
 const InspectBlocker = () => {
-  const [blocked, setBlocked] = useState(false);
-  const [reason, setReason] = useState('Inspect is disabled by the developer.');
-  const isProd = import.meta.env.PROD;
-
-  const lock = useCallback((message) => {
-    setReason(message || 'Inspect is disabled by the developer.');
-    setBlocked(true);
-  }, []);
-
-  // Hide real page content while blocked
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (!root) return undefined;
-
-    if (blocked) {
-      root.setAttribute('aria-hidden', 'true');
-      root.style.setProperty('display', 'none', 'important');
-      document.documentElement.style.setProperty('overflow', 'hidden', 'important');
-      document.body.style.setProperty('overflow', 'hidden', 'important');
-      document.body.style.setProperty('background', '#080d16', 'important');
-    } else {
-      root.removeAttribute('aria-hidden');
-      root.style.removeProperty('display');
-      document.documentElement.style.removeProperty('overflow');
-      document.body.style.removeProperty('overflow');
-      document.body.style.removeProperty('background');
-    }
-
-    return () => {
-      root.removeAttribute('aria-hidden');
-      root.style.removeProperty('display');
-      document.documentElement.style.removeProperty('overflow');
-      document.body.style.removeProperty('overflow');
-      document.body.style.removeProperty('background');
-    };
-  }, [blocked]);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const showFromShortcut = (event) => {
+    const showPopup = (event) => {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
-      lock('Inspect is disabled by the developer.');
+      setOpen(true);
     };
 
     const onKeyDown = (event) => {
@@ -58,141 +22,49 @@ const InspectBlocker = () => {
       const ctrl = event.ctrlKey || event.metaKey;
       const shift = event.shiftKey;
 
+      // F12 only
       if (key === 'F12') {
-        showFromShortcut(event);
+        showPopup(event);
         return;
       }
+
+      // Ctrl+Shift+I / J / C / K — DevTools shortcuts
       if (ctrl && shift && ['I', 'J', 'C', 'K', 'i', 'j', 'c', 'k'].includes(key)) {
-        showFromShortcut(event);
+        showPopup(event);
         return;
       }
-      if (ctrl && (key === 'u' || key === 'U' || key === 's' || key === 'S')) {
-        showFromShortcut(event);
+
+      // Ctrl+U — view source
+      if (ctrl && (key === 'u' || key === 'U')) {
+        showPopup(event);
       }
     };
 
     const onContextMenu = (event) => {
-      showFromShortcut(event);
+      showPopup(event);
     };
 
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('contextmenu', onContextMenu, true);
 
-    if (!isProd) {
-      return () => {
-        document.removeEventListener('keydown', onKeyDown, true);
-        document.removeEventListener('contextmenu', onContextMenu, true);
-      };
-    }
-
-    const detectBySize = () => {
-      const widthGap = Math.abs(window.outerWidth - window.innerWidth);
-      const heightGap = Math.abs(window.outerHeight - window.innerHeight);
-      if (widthGap > 160 || heightGap > 160) {
-        lock('Developer tools detected. Inspect is disabled by the developer.');
-        return true;
-      }
-      return false;
-    };
-
-    const detectByConsole = () => {
-      let opened = false;
-      const element = new Image();
-      Object.defineProperty(element, 'id', {
-        get() {
-          opened = true;
-          return 'devtools';
-        },
-      });
-      // eslint-disable-next-line no-console
-      console.log('%c', element);
-      try {
-        // eslint-disable-next-line no-console
-        console.clear();
-      } catch {
-        /* ignore */
-      }
-      if (opened) {
-        lock('Developer tools detected. Inspect is disabled by the developer.');
-      }
-      return opened;
-    };
-
-    const debuggerTrap = () => {
-      const start = performance.now();
-      // eslint-disable-next-line no-debugger
-      debugger;
-      if (performance.now() - start > 100) {
-        lock('Developer tools detected. Inspect is disabled by the developer.');
-        return true;
-      }
-      return false;
-    };
-
-    const runChecks = () => {
-      if (detectBySize()) return;
-      try {
-        if (detectByConsole()) return;
-      } catch {
-        /* ignore */
-      }
-      try {
-        debuggerTrap();
-      } catch {
-        /* ignore */
-      }
-    };
-
-    window.addEventListener('resize', detectBySize);
-    runChecks();
-    const interval = setInterval(runChecks, 900);
-
-    try {
-      const noop = () => {};
-      ['log', 'debug', 'info', 'table', 'dir'].forEach((method) => {
-        // eslint-disable-next-line no-console
-        console[method] = noop;
-      });
-    } catch {
-      /* ignore */
-    }
-
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
       document.removeEventListener('contextmenu', onContextMenu, true);
-      window.removeEventListener('resize', detectBySize);
-      clearInterval(interval);
     };
-  }, [isProd, lock]);
+  }, []);
 
-  useEffect(() => {
-    if (!blocked || !isProd) return undefined;
+  if (!open) return null;
 
-    const tryUnlock = () => {
-      const widthGap = Math.abs(window.outerWidth - window.innerWidth);
-      const heightGap = Math.abs(window.outerHeight - window.innerHeight);
-      if (widthGap <= 160 && heightGap <= 160) {
-        setBlocked(false);
-      }
-    };
-
-    const id = setInterval(tryUnlock, 700);
-    return () => clearInterval(id);
-  }, [blocked, isProd]);
-
-  if (!blocked) return null;
-
-  // Render outside #root so the site can be fully hidden
   return createPortal(
     <div
-      id="inspect-block-screen"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="inspect-blocked-title"
+      onClick={() => setOpen(false)}
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: '#080d16',
+        backgroundColor: 'rgba(8, 13, 22, 0.75)',
         zIndex: 2147483646,
         display: 'flex',
         alignItems: 'center',
@@ -203,27 +75,29 @@ const InspectBlocker = () => {
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
+        className="card"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          width: 'min(440px, 100%)',
+          width: 'min(400px, 100%)',
+          margin: 0,
           textAlign: 'center',
-          border: '1px solid rgba(248, 113, 113, 0.45)',
-          borderRadius: '10px',
-          padding: '28px 24px',
-          backgroundColor: '#111827',
+          borderColor: 'rgba(220, 38, 38, 0.4)',
         }}
       >
-        <h3
-          id="inspect-blocked-title"
-          style={{ marginBottom: '12px', color: '#f87171', fontSize: '1.25rem' }}
-        >
+        <h3 id="inspect-blocked-title" style={{ marginBottom: '12px', color: '#f87171' }}>
           Inspect disabled
         </h3>
-        <p style={{ color: '#e2e8f0', marginBottom: '12px', fontSize: '0.95rem', lineHeight: 1.5 }}>
-          {reason}
+        <p style={{ color: 'var(--text-main)', marginBottom: '20px', fontSize: '0.95rem' }}>
+          Inspect is disabled by the developer.
         </p>
-        <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.85rem' }}>
-          Close developer tools to continue using this website.
-        </p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', minWidth: '100px' }}
+          onClick={() => setOpen(false)}
+        >
+          OK
+        </button>
       </div>
     </div>,
     document.body
