@@ -7,6 +7,12 @@ import authRoutes from './routes/auth.js';
 import applicationRoutes from './routes/applications.js';
 import messageRoutes from './routes/messages.js';
 import recruitmentRoutes from './routes/recruitment.js';
+import { sanitizeRequest } from './middleware/sanitize.js';
+import {
+  rateLimit,
+  securityHeaders,
+  blockObviousScrapers,
+} from './middleware/security.js';
 
 dotenv.config();
 
@@ -44,6 +50,10 @@ export async function connectDB() {
 export function createApp() {
   const app = express();
 
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
+
+  app.use(securityHeaders);
   app.use(
     cors({
       origin(origin, callback) {
@@ -57,6 +67,38 @@ export function createApp() {
     })
   );
   app.use(express.json({ limit: '2mb' }));
+  app.use(sanitizeRequest);
+
+  // Global API rate limit (anti-scraping / brute force)
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 60_000,
+      max: 120,
+      message: 'Too many requests. Please slow down and try again.',
+    })
+  );
+
+  // Stricter limit on auth (credential stuffing / brute force)
+  app.use(
+    '/api/auth',
+    rateLimit({
+      windowMs: 15 * 60_000,
+      max: 40,
+      message: 'Too many login attempts. Please try again later.',
+    })
+  );
+
+  // Protect bulk applicant listing from simple scrapers
+  app.use('/api/applications', blockObviousScrapers);
+  app.use(
+    '/api/applications',
+    rateLimit({
+      windowMs: 60_000,
+      max: 60,
+      message: 'Too many application requests. Please try again later.',
+    })
+  );
 
   app.get('/api/health', (_req, res) => {
     res.json({

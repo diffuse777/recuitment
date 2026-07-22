@@ -2,6 +2,7 @@ import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { asSafeString } from '../middleware/sanitize.js';
 
 const router = express.Router();
 
@@ -12,10 +13,11 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id
 // Separate admin login (username/password) — not used by participant Google login
 router.post('/admin', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const username = asSafeString(req.body?.username, 100);
+    const password = asSafeString(req.body?.password, 200);
     const expectedPassword = process.env.ADMIN_PASSWORD || 'recuitment@0007';
     const expectedUsername = (process.env.ADMIN_USERNAME || 'cybernerdsXowsap').trim().toLowerCase();
-    const providedUsername = String(username || '').trim().toLowerCase();
+    const providedUsername = username.trim().toLowerCase();
 
     if (!providedUsername || !password) {
       return res.status(400).json({ message: 'Username and password are required.' });

@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /admin
+Disallow: /api/
+Disallow: /participant/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+Sitemap: https://owaspxcybernerds.xyz/

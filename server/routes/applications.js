@@ -10,6 +10,7 @@ import Message from '../models/Message.js';
 import User from '../models/User.js';
 import { resolveUserId } from '../utils/resolveUserId.js';
 import { assertApplicationsOpen } from '../utils/recruitmentWindow.js';
+import { asSafeString } from '../middleware/sanitize.js';
 
 const router = express.Router();
 
@@ -233,7 +234,10 @@ router.post('/', upload.single('resume'), async (req, res) => {
 // Get user's application
 router.get('/my-application', async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId = asSafeString(req.query.userId);
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required.' });
+    }
     const resolvedUserId = await resolveUserId(userId);
     const application = await Application.findOne({ userId: resolvedUserId }).select('-resumeData');
     res.json({ application });

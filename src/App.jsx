@@ -23,11 +23,13 @@ import ApplicantsPage from './pages/admin/ApplicantsPage';
 import AdminMessagesPage from './pages/admin/AdminMessagesPage';
 import ExportPage from './pages/admin/ExportPage';
 import RecruitmentSettingsPage from './pages/admin/RecruitmentSettingsPage';
+import InspectBlocker from './components/InspectBlocker';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <InspectBlocker />
         <div className="app-layout">
           <Navbar />
           <div className="app-main">
