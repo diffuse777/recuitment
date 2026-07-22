@@ -421,6 +421,7 @@ const ApplicantsPage = () => {
               <th>Candidate</th>
               <th>Contact</th>
               <th>Major & Year</th>
+              <th>Club</th>
               <th>Status</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
@@ -428,7 +429,7 @@ const ApplicantsPage = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '32px' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '32px' }}>
                   Loading applications...
                 </td>
               </tr>
@@ -442,6 +443,7 @@ const ApplicantsPage = () => {
                   <td>
                     {app.department} • {app.yearOfStudy}
                   </td>
+                  <td>{app.preferredClub || '—'}</td>
                   <td>
                     <span
                       className={`badge ${
@@ -530,7 +532,7 @@ const ApplicantsPage = () => {
             {!loading && filteredApplicants.length === 0 && (
               <tr>
                 <td
-                  colSpan="5"
+                  colSpan="6"
                   style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}
                 >
                   No candidates found matching the criteria.
