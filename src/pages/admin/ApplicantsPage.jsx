@@ -42,6 +42,8 @@ const ApplicantsPage = () => {
   const [interviewDetailsText, setInterviewDetailsText] = useState('');
   const [interviewDetailsStatus, setInterviewDetailsStatus] = useState('');
   const [sendingInterviewDetails, setSendingInterviewDetails] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteStatus, setDeleteStatus] = useState('');
 
   const fetchApplicants = async () => {
     try {
@@ -224,28 +226,39 @@ const ApplicantsPage = () => {
     }
   };
 
-  const handleDelete = async (app) => {
+  const openDeleteConfirm = (app) => {
     if (!app?._id) return;
-    const confirmed = window.confirm(
-      `Delete applicant "${app.name}"?\n\nThis will permanently remove their application, messages, and user account.`
-    );
-    if (!confirmed) return;
+    setDeleteTarget(app);
+    setDeleteStatus('');
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteStatus('');
+  };
+
+  const confirmDeleteApplicant = async () => {
+    if (!deleteTarget?._id) return;
 
     setDeleting(true);
+    setDeleteStatus('');
     try {
-      const res = await fetch(apiUrl(`/api/applications/${app._id}`), {
+      const res = await fetch(apiUrl(`/api/applications/${deleteTarget._id}`), {
         method: 'DELETE',
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.message || 'Failed to delete applicant.');
+        setDeleteStatus(data.message || 'Failed to delete applicant.');
         return;
       }
-      setApplicants((prev) => prev.filter((a) => a._id !== app._id));
-      if (selectedApp?._id === app._id) closeDetails();
+      setApplicants((prev) => prev.filter((a) => a._id !== deleteTarget._id));
+      if (selectedApp?._id === deleteTarget._id) closeDetails();
+      setDeleteTarget(null);
+      setDeleteStatus('');
     } catch (error) {
       console.error('Delete failed:', error);
-      alert('Failed to delete applicant.');
+      setDeleteStatus('Failed to delete applicant.');
     } finally {
       setDeleting(false);
     }
@@ -519,7 +532,7 @@ const ApplicantsPage = () => {
                       )}
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(app)}
+                        onClick={() => openDeleteConfirm(app)}
                         disabled={deleting}
                       >
                         Delete
@@ -585,7 +598,7 @@ const ApplicantsPage = () => {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   className="btn btn-danger btn-sm"
-                  onClick={() => handleDelete(selectedApp)}
+                  onClick={() => openDeleteConfirm(selectedApp)}
                   disabled={deleting}
                 >
                   {deleting ? 'Deleting...' : 'Delete'}
@@ -979,6 +992,76 @@ const ApplicantsPage = () => {
                 disabled={sendingInterviewDetails}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-applicant-title"
+          onClick={closeDeleteConfirm}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            zIndex: 1200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(440px, 100%)',
+              margin: 0,
+              textAlign: 'center',
+              borderColor: 'rgba(220, 38, 38, 0.45)',
+            }}
+          >
+            <h3 id="delete-applicant-title" style={{ marginBottom: '12px', color: '#f87171' }}>
+              Delete applicant?
+            </h3>
+            <p style={{ color: 'var(--text-main)', marginBottom: '8px', fontSize: '0.95rem' }}>
+              Delete application for <strong>{deleteTarget.name}</strong>?
+            </p>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.88rem' }}>
+              This will permanently remove their application and related messages. They can submit
+              a new application later.
+            </p>
+            {deleteStatus ? (
+              <p
+                style={{
+                  fontSize: '0.9rem',
+                  marginBottom: '16px',
+                  color: 'var(--danger, #ef4444)',
+                }}
+              >
+                {deleteStatus}
+              </p>
+            ) : null}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={confirmDeleteApplicant}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeDeleteConfirm}
+                disabled={deleting}
+              >
+                Cancel
               </button>
             </div>
           </div>
