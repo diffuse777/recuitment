@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
- * Deterrent against casual inspection.
- * Browsers do not allow a site to truly turn off DevTools.
- * In production we detect when it is open and block the UI until it is closed.
+ * When DevTools / inspect is detected, hide the entire site UI
+ * and show only the block screen. DevTools itself cannot be closed
+ * by a website, but page content can be hidden.
  */
 const InspectBlocker = () => {
   const [blocked, setBlocked] = useState(false);
@@ -14,6 +15,34 @@ const InspectBlocker = () => {
     setReason(message || 'Inspect is disabled by the developer.');
     setBlocked(true);
   }, []);
+
+  // Hide real page content while blocked
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return undefined;
+
+    if (blocked) {
+      root.setAttribute('aria-hidden', 'true');
+      root.style.setProperty('display', 'none', 'important');
+      document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+      document.body.style.setProperty('overflow', 'hidden', 'important');
+      document.body.style.setProperty('background', '#080d16', 'important');
+    } else {
+      root.removeAttribute('aria-hidden');
+      root.style.removeProperty('display');
+      document.documentElement.style.removeProperty('overflow');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('background');
+    }
+
+    return () => {
+      root.removeAttribute('aria-hidden');
+      root.style.removeProperty('display');
+      document.documentElement.style.removeProperty('overflow');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('background');
+    };
+  }, [blocked]);
 
   useEffect(() => {
     const showFromShortcut = (event) => {
@@ -49,7 +78,6 @@ const InspectBlocker = () => {
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('contextmenu', onContextMenu, true);
 
-    // Aggressive detection only on the live deployed site
     if (!isProd) {
       return () => {
         document.removeEventListener('keydown', onKeyDown, true);
@@ -117,7 +145,7 @@ const InspectBlocker = () => {
 
     window.addEventListener('resize', detectBySize);
     runChecks();
-    const interval = setInterval(runChecks, 1200);
+    const interval = setInterval(runChecks, 900);
 
     try {
       const noop = () => {};
@@ -148,14 +176,16 @@ const InspectBlocker = () => {
       }
     };
 
-    const id = setInterval(tryUnlock, 800);
+    const id = setInterval(tryUnlock, 700);
     return () => clearInterval(id);
   }, [blocked, isProd]);
 
   if (!blocked) return null;
 
-  return (
+  // Render outside #root so the site can be fully hidden
+  return createPortal(
     <div
+      id="inspect-block-screen"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="inspect-blocked-title"
@@ -195,7 +225,8 @@ const InspectBlocker = () => {
           Close developer tools to continue using this website.
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
